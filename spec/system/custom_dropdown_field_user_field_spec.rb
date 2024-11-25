@@ -2,8 +2,6 @@
 
 RSpec.describe "Discourse Authentication Validation - Custom User Field - Dropdown Field",
                type: :system do
-  before { SiteSetting.discourse_authentication_validations_enabled = true }
-
   let(:custom_validation_page) { PageObjects::Pages::CustomValidation.new }
 
   fab!(:user_field_without_validation) do
@@ -78,75 +76,62 @@ RSpec.describe "Discourse Authentication Validation - Custom User Field - Dropdo
     ) { user_field_options { [Fabricate(:user_field_option, value: "not a show_values value")] } }
   end
 
-  it "shows the target user field when user field has no custom validation" do
+  before do
+    SiteSetting.discourse_authentication_validations_enabled = true
     visit("/signup")
+  end
+
+  it "shows child when parent has no custom validation" do
     expect(page).to have_css(custom_validation_page.target_class(user_field_without_validation))
   end
 
-  context "when user field has custom validation" do
-    before { visit("/signup") }
+  it "hides child when included in target_user_field_ids" do
+    expect(page).to have_no_css(custom_validation_page.target_class(user_field_with_validation_1))
+  end
 
-    it "hides the target user field when user field is included in target_user_field_ids" do
-      expect(page).to have_no_css(custom_validation_page.target_class(user_field_with_validation_1))
+  it "shows child when not included in target_user_field_ids" do
+    expect(page).to have_css(custom_validation_page.target_class(user_field_with_validation_2))
+  end
+
+  context "when show_values are set on parent" do
+    it "shows the child when the input matches a show_values value" do
+      custom_validation_page.select_show_validation_value(
+        custom_validation_page.target_class(user_field_with_validation_2),
+      )
+      expect(page).to have_css(custom_validation_page.target_class(user_field_with_validation_1))
     end
 
-    it "shows the target user field when user field is not included in target_user_field_ids" do
-      expect(page).to have_css(custom_validation_page.target_class(user_field_with_validation_2))
+    it "hides child when the input does not match a show_values value" do
+      custom_validation_page.select_not_show_validation_value(
+        custom_validation_page.target_class(user_field_with_validation_2),
+      )
+      expect(page).to have_no_css(custom_validation_page.target_class(user_field_with_validation_1))
     end
   end
 
-  context "when changing the value of user field with a custom validation and user field is included in target_user_field_ids" do
-    context "when show_values are set on parent user field of target" do
-      before { visit("/signup") }
-
-      it "shows the target user field when the input matches a show_values value" do
-        custom_validation_page.select_show_validation_value(
-          custom_validation_page.target_class(user_field_with_validation_2),
-        )
-        expect(page).to have_css(custom_validation_page.target_class(user_field_with_validation_1))
-      end
-
-      it "hides the target user field when the input does not match a show_values value" do
-        custom_validation_page.select_not_show_validation_value(
-          custom_validation_page.target_class(user_field_with_validation_2),
-        )
-        expect(page).to have_no_css(
-          custom_validation_page.target_class(user_field_with_validation_1),
-        )
-      end
+  context "when show_values includes `null`" do
+    it "shows the child" do
+      expect(page).to have_css(custom_validation_page.target_class(user_field_without_validation_2))
     end
 
-    context "when show_values includes `null` on the parent user field of target" do
-      before { visit("/signup") }
-
-      it "shows the target user field" do
-        expect(page).to have_css(
-          custom_validation_page.target_class(user_field_without_validation_2),
-        )
-      end
-
-      it "toggles the display of the target after the value has changed" do
-        custom_validation_page.select_not_show_validation_value(
-          custom_validation_page.target_class(user_field_with_validation_3),
-        )
-        expect(page).to have_no_css(
-          custom_validation_page.target_class(user_field_without_validation_2),
-        )
-      end
+    it "toggles the display of the child after the value has changed" do
+      custom_validation_page.select_not_show_validation_value(
+        custom_validation_page.target_class(user_field_with_validation_3),
+      )
+      expect(page).to have_no_css(
+        custom_validation_page.target_class(user_field_without_validation_2),
+      )
     end
+  end
 
-    context "when show_values are not set on parent user field of target" do
-      before { user_field_with_validation_2.show_values = [] }
+  context "when show_values are not set" do
+    before { user_field_with_validation_2.show_values = [] }
 
-      it "hides the target user field when show_values are not set on parent user field of target" do
-        visit("/signup")
-        custom_validation_page.select_not_show_validation_value(
-          custom_validation_page.target_class(user_field_with_validation_2),
-        )
-        expect(page).to have_no_css(
-          custom_validation_page.target_class(user_field_with_validation_1),
-        )
-      end
+    it "hides the child" do
+      custom_validation_page.select_not_show_validation_value(
+        custom_validation_page.target_class(user_field_with_validation_2),
+      )
+      expect(page).to have_no_css(custom_validation_page.target_class(user_field_with_validation_1))
     end
   end
 end
